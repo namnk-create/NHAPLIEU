@@ -2,13 +2,10 @@ name = "nhaplieu"
 main = "worker.js"
 compatibility_date = "2026-01-01"
 
-[assets]
-directory = "./public"
-binding = "ASSETS"
-not_found_handling = "single-page-application"
-run_worker_first = ["/api/*"]
-
 [[d1_databases]]
 binding = "DB"
 database_name = "nhaplieu"
 database_id = "5640b6eb-d2b0-4c12-b2c6-6111c674a3b8"
+
+[ai]
+binding = "AI"
