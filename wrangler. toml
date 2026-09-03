@@ -2,14 +2,12 @@ name = "nhaplieu"
 main = "worker.js"
 compatibility_date = "2026-01-01"
 
-# Thư mục chứa file tĩnh (index.html). Worker phục vụ các file này.
 [assets]
 directory = "./public"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
+run_worker_first = ["/api/*"]
 
-# Database D1. Dán database_id của database "nhaplieu" vào đây.
-# Lấy id: Cloudflare > Storage & databases > D1 > nhaplieu > mục "Database ID".
 [[d1_databases]]
 binding = "DB"
 database_name = "nhaplieu"
