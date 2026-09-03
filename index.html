@@ -1457,27 +1457,25 @@ async function forceChangePassword(u) {
       el('label', { class: 'fld' }, [el('span', { text: 'Mật khẩu mới' }), el('input', { id: 'np1', type: 'password', class: 'inp' })]),
       el('label', { class: 'fld' }, [el('span', { text: 'Nhập lại mật khẩu' }), el('input', { id: 'np2', type: 'password', class: 'inp' })]),
     ]);
-    (({ modal }) => {
-      const close = modal({
-        title: 'Đổi mật khẩu bắt buộc', bodyNode: box,
-        actions: [{
-          label: 'Lưu mật khẩu', cls: 'btn-primary', onClick: async (c) => {
-            const p1 = box.querySelector('#np1').value, p2 = box.querySelector('#np2').value;
-            if (p1.length < 4) { toast('Mật khẩu tối thiểu 4 ký tự', 'warn'); return; }
-            if (p1 !== p2) { toast('Hai mật khẩu không khớp', 'bad'); return; }
-            const users = await Store.getUsers();
-            const idx = users.findIndex(x => x.id === u.id);
-            users[idx].passHash = await Store.hashPassword(p1);
-            users[idx].mustChange = false;
-            await Store.setUsers(users);
-            State.user = users[idx];
-            toast('Đã đổi mật khẩu', 'ok');
-            c(); resolve();
-          }
-        }]
-      });
+    modal({
+      title: 'Đổi mật khẩu bắt buộc', bodyNode: box,
+      actions: [{
+        label: 'Lưu mật khẩu', cls: 'btn-primary', onClick: async (c) => {
+          const p1 = box.querySelector('#np1').value, p2 = box.querySelector('#np2').value;
+          if (p1.length < 4) { toast('Mật khẩu tối thiểu 4 ký tự', 'warn'); return; }
+          if (p1 !== p2) { toast('Hai mật khẩu không khớp', 'bad'); return; }
+          const users = await Store.getUsers();
+          const idx = users.findIndex(x => x.id === u.id);
+          users[idx].passHash = await Store.hashPassword(p1);
+          users[idx].mustChange = false;
+          await Store.setUsers(users);
+          State.user = users[idx];
+          toast('Đã đổi mật khẩu', 'ok');
+          c(); resolve();
+        }
+      }]
     });
-  })({ modal });
+  });
 }
 
 function enterApp() {
