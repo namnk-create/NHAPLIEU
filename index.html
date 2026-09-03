@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hệ thống xử lý dữ liệu hàng hoá</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink:#16202b; --ink-soft:#5b6b7c; --line:#d3dce4; --line-soft:#e6ecf1;
+  --paper:#eef2f5; --panel:#ffffff; --head:#1f3a5f; --head2:#2b5488;
+  --accent:#1f6feb; --ok:#0f7a52; --ok-bg:#e7f5ee; --bad:#b4231f; --bad-bg:#fbeceb;
+  --warn:#9a6206; --warn-bg:#fdf3d0; --mark:#fff7db;
+  --radius:6px; --shadow:0 1px 3px rgba(20,32,43,.12),0 6px 18px rgba(20,32,43,.06);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Segoe UI",Tahoma,Arial,sans-serif;font-size:14px;line-height:1.5}
+.hidden{display:none !important}
+button{font-family:inherit}
+
+/* ---------- Login ---------- */
+.login-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#1f3a5f,#2b5488)}
+.login-box{background:var(--panel);width:360px;max-width:92vw;padding:34px 30px;border-radius:10px;box-shadow:var(--shadow)}
+.login-title{margin:0 0 4px;font-size:22px;font-weight:600}
+.login-sub{margin:0 0 22px;color:var(--ink-soft);font-size:13px}
+.login-msg{min-height:18px;margin:10px 0 0;font-size:13px;color:var(--bad)}
+.login-hint{margin:16px 0 0;font-size:12px;color:var(--ink-soft);background:var(--paper);padding:10px;border-radius:var(--radius)}
+.fld{display:block;margin-bottom:14px}
+.fld>span{display:block;font-size:12px;color:var(--ink-soft);margin-bottom:5px}
+.fld input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:var(--radius);font-size:14px}
+.fld input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(31,111,235,.15)}
+
+/* ---------- Layout ---------- */
+.app{display:flex;flex-direction:column;height:100vh}
+.topbar{display:flex;align-items:center;gap:18px;background:var(--head);color:#fff;
+  padding:0 18px;height:52px;flex:0 0 auto}
+.brand{font-weight:600;font-size:15px;white-space:nowrap}
+.tabs{display:flex;gap:4px;flex:1}
+.tab{background:transparent;color:#c7d6ea;border:none;padding:9px 16px;font-size:14px;
+  border-radius:var(--radius) var(--radius) 0 0;cursor:pointer;font-weight:500}
+.tab:hover{background:rgba(255,255,255,.1);color:#fff}
+.tab.active{background:var(--paper);color:var(--head);font-weight:600}
+.user-box{display:flex;align-items:center;gap:10px;font-size:13px;color:#c7d6ea}
+.content{flex:1;overflow:auto;padding:18px}
+.tabpane{display:none}
+.tabpane.active{display:block}
+
+/* ---------- Panels ---------- */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);margin-bottom:16px}
+.panel-head{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line-soft);
+  background:linear-gradient(#fff,#f7fafc)}
+.panel-head h2{margin:0;font-size:15px;font-weight:600}
+.panel-head .desc{font-size:12px;color:var(--ink-soft);font-weight:400}
+.panel-head .spacer{flex:1}
+.panel-body{padding:16px}
+.panel-body.tight{padding:0}
+
+/* ---------- Buttons ---------- */
+.btn{border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 14px;
+  border-radius:var(--radius);cursor:pointer;font-size:13px;font-weight:500;transition:.12s}
+.btn:hover{background:#f2f6fa}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn-primary:hover{background:#1b5fd0}
+.btn-ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn-ok:hover{filter:brightness(1.06)}
+.btn-danger{background:#fff;border-color:var(--bad);color:var(--bad)}
+.btn-danger:hover{background:var(--bad-bg)}
+.btn-ghost{background:transparent;border-color:rgba(255,255,255,.3);color:#fff}
+.btn-ghost:hover{background:rgba(255,255,255,.12)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-block{width:100%;margin-top:6px;padding:11px;font-size:15px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+/* ---------- Badges / notes ---------- */
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:600}
+.badge.ok{background:var(--ok-bg);color:var(--ok)}
+.badge.bad{background:var(--bad-bg);color:var(--bad)}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.info{background:#e7f0fb;color:var(--accent)}
+.flash{padding:10px 14px;border-radius:var(--radius);font-size:13px;margin:0 0 12px;border:1px solid}
+.flash.ok{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.flash.bad{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.flash.warn{background:var(--warn-bg);border-color:#e5c76b;color:var(--warn)}
+.muted{color:var(--ink-soft)}
+.stat{display:inline-flex;align-items:baseline;gap:6px;padding:6px 12px;background:var(--paper);
+  border-radius:var(--radius);font-size:13px}
+.stat b{font-size:16px}
+
+/* ---------- Editable rule tables ---------- */
+.rt-wrap{overflow:auto;max-height:360px;border-top:1px solid var(--line-soft)}
+table.rt{border-collapse:collapse;width:100%;font-size:13px}
+table.rt th,table.rt td{border:1px solid var(--line-soft);padding:0}
+table.rt th{background:#f0f4f8;padding:8px 10px;text-align:left;font-weight:600;position:sticky;top:0;z-index:2}
+table.rt td input{width:100%;border:none;padding:7px 10px;font-size:13px;background:transparent;font-family:inherit}
+table.rt td input:focus{outline:2px solid var(--accent);outline-offset:-2px;background:#fff}
+table.rt td.act{text-align:center;width:44px;background:#fafbfc}
+table.rt tr:nth-child(even) td{background:#fbfcfd}
+.icon-btn{border:none;background:transparent;cursor:pointer;font-size:15px;padding:4px 6px;border-radius:4px;line-height:1}
+.icon-btn:hover{background:#eef2f6}
+.icon-btn.del:hover{background:var(--bad-bg)}
+
+/* ---------- Data grid (bảng 2 nhập liệu) ---------- */
+.grid-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;border-bottom:1px solid var(--line-soft)}
+.grid-scroll{overflow:auto;background:#fff;resize:vertical}
+.grid-scroll.big{height:70vh}
+.grid-scroll.small{height:340px}
+table.grid{border-collapse:separate;border-spacing:0;font-size:12.5px;white-space:nowrap;font-family:ui-monospace,Consolas,monospace}
+table.grid th,table.grid td{border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);padding:0}
+table.grid thead th{background:#eef3f8;position:sticky;top:0;z-index:3;padding:5px 8px;text-align:left;
+  font-family:"Segoe UI",Arial,sans-serif;font-weight:600;cursor:pointer;user-select:none}
+table.grid thead th .col-code{color:var(--accent);font-size:11px;margin-right:5px}
+table.grid thead th:hover{background:#e2ebf4}
+table.grid td{padding:0}
+table.grid td .cell{padding:4px 8px;min-width:70px;max-width:320px;overflow:hidden;text-overflow:ellipsis}
+table.grid td .cell[contenteditable]{outline:none}
+table.grid td .cell[contenteditable]:focus{background:#fff7d6;box-shadow:inset 0 0 0 2px var(--accent)}
+table.grid td.rownum{background:#f6f9fb;color:var(--ink-soft);text-align:right;position:sticky;left:0;z-index:2;
+  padding:4px 8px;font-family:"Segoe UI",Arial,sans-serif;min-width:46px}
+table.grid tr.dupe td{background:var(--bad-bg)}
+table.grid td.cell-err{background:var(--bad-bg) !important;box-shadow:inset 0 0 0 1px var(--bad)}
+table.grid td.cell-warn{background:var(--warn-bg) !important}
+table.grid td.cell-changed{background:#eaf6ee}
+.sort-ind{font-size:10px;color:var(--accent);margin-left:3px}
+.filter-row th{padding:3px}
+.filter-row input{width:100%;border:1px solid var(--line);border-radius:3px;padding:3px 6px;font-size:11px;font-family:"Segoe UI",Arial}
+
+/* ---------- Paste box ---------- */
+.paste-box{min-height:70px;border:2px dashed var(--line);border-radius:var(--radius);
+  padding:14px;text-align:center;color:var(--ink-soft);cursor:text;background:#fafcfe}
+.paste-box:focus{outline:none;border-color:var(--accent);background:#fff}
+.paste-box strong{color:var(--ink);display:block;margin-bottom:3px}
+
+/* ---------- Translate ---------- */
+.tr-cols{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line-soft)}
+.tr-cols textarea{border:none;padding:10px;font-size:13px;min-height:300px;resize:vertical;font-family:ui-monospace,Consolas,monospace}
+.tr-cols textarea:first-child{border-right:1px solid var(--line-soft)}
+.tr-cols textarea:focus{outline:none;background:#fffdf5}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.seg button{border:none;background:#fff;padding:6px 14px;cursor:pointer;font-size:13px}
+.seg button.on{background:var(--accent);color:#fff}
+
+/* ---------- Failed table ---------- */
+table.fail{border-collapse:collapse;width:100%;font-size:12.5px}
+table.fail th,table.fail td{border:1px solid var(--line-soft);padding:6px 9px;text-align:left}
+table.fail th{background:#f0f4f8;font-weight:600}
+table.fail tr:hover td{background:var(--mark)}
+.reason{color:var(--bad);font-size:12px}
+
+/* ---------- Admin ---------- */
+table.users{border-collapse:collapse;width:100%;font-size:13px}
+table.users th,table.users td{border:1px solid var(--line-soft);padding:8px 11px;text-align:left}
+table.users th{background:#f0f4f8;font-weight:600}
+.chip{display:inline-block;padding:2px 9px;border-radius:4px;font-size:12px;font-weight:600;background:#e7f0fb;color:var(--accent)}
+.chip.admin{background:#f3e8ff;color:#7c3aed}
+.chip.viewer{background:#e7f5ee;color:var(--ok)}
+.chip.off{background:#eef1f4;color:var(--ink-soft)}
+
+/* ---------- Modal ---------- */
+.modal-mask{position:fixed;inset:0;background:rgba(20,32,43,.5);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal{background:#fff;border-radius:10px;box-shadow:var(--shadow);width:460px;max-width:94vw;max-height:88vh;overflow:auto}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--line-soft);font-size:16px;font-weight:600}
+.modal-body{padding:20px}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--line-soft);display:flex;gap:10px;justify-content:flex-end}
+.modal .fld{margin-bottom:14px}
+.confirm-tbl{width:100%;border-collapse:collapse;margin-top:8px;font-size:13px}
+.confirm-tbl td{padding:6px 4px}
+.confirm-tbl td:first-child{color:var(--ink-soft)}
+.confirm-tbl td:last-child{text-align:right;font-weight:600}
+select.inp{padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);font-size:14px;width:100%}
+input.inp{padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);font-size:14px;width:100%}
+.upload-hint{font-size:12px;color:var(--ink-soft);margin-top:6px}
+
+</style>
+</head>
+<body>
+<div id="login-screen" class="login-screen">
+  <div class="login-box">
+    <h1 class="login-title">Đăng nhập hệ thống</h1>
+    <p class="login-sub">Hệ thống xử lý dữ liệu hàng hoá</p>
+    <label class="fld"><span>Tên đăng nhập / ID</span><input id="login-user" type="text" autocomplete="username" spellcheck="false"></label>
+    <label class="fld"><span>Mật khẩu</span><input id="login-pass" type="password" autocomplete="current-password"></label>
+    <button id="login-btn" class="btn btn-primary btn-block">Đăng nhập</button>
+    <p id="login-msg" class="login-msg"></p>
+    <p class="login-hint">Lần đầu chạy: tài khoản <b>admin</b> / <b>admin</b> — đăng nhập xong đổi mật khẩu ngay.</p>
+  </div>
+</div>
+
+<div id="app" class="app hidden">
+  <header class="topbar">
+    <div class="brand">Xử lý dữ liệu hàng hoá</div>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-tab="input">1. Nhập liệu</button>
+      <button class="tab" data-tab="mec">2. Kéo MEC</button>
+      <button class="tab" data-tab="rules">3. Rule setup</button>
+      <button class="tab" data-tab="admin">4. Admin</button>
+    </nav>
+    <div class="user-box">
+      <span id="who"></span>
+      <button id="logout-btn" class="btn btn-ghost btn-sm">Đăng xuất</button>
+    </div>
+  </header>
+  <main class="content">
+    <section id="tab-input" class="tabpane active"></section>
+    <section id="tab-mec" class="tabpane"></section>
+    <section id="tab-rules" class="tabpane"></section>
+    <section id="tab-admin" class="tabpane"></section>
+  </main>
+</div>
+
+<div id="modal-root"></div>
+
+<script>
+(function(){
+
+/* ==================== util.js ==================== */
+/* Tiện ích dùng chung */
+
+const $  = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+
+function el(tag, attrs = {}, children = []) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === 'class') n.className = v;
+    else if (k === 'html') n.innerHTML = v;
+    else if (k === 'text') n.textContent = v;
+    else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2), v);
+    else if (v !== null && v !== undefined) n.setAttribute(k, v);
+  }
+  (Array.isArray(children) ? children : [children]).forEach(c => {
+    if (c == null) return;
+    n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+  });
+  return n;
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+}
+
+/* Đọc clipboard dán từ Excel -> {headers, rows}.
+   Ưu tiên text/html để lấy đúng cấu trúc ô + giá trị gốc số dài. */
+function parseClipboard(cd) {
+  let html = '', plain = '';
+  try { html  = cd.getData('text/html')  || ''; } catch {}
+  try { plain = cd.getData('text/plain') || ''; } catch {}
+
+  let matrix = null;
+  if (html) matrix = parseHtmlTable(html);
+  if (!matrix && plain) matrix = parsePlain(plain);
+  if (!matrix || !matrix.length) return null;
+
+  const headers = matrix[0].map(h => (h ?? '').toString().trim());
+  const rows = matrix.slice(1);
+  // chuẩn hoá số cột
+  const width = Math.max(headers.length, ...rows.map(r => r.length));
+  while (headers.length < width) headers.push('');
+  rows.forEach(r => { while (r.length < width) r.push(''); });
+  return { headers, rows };
+}
+
+function parseHtmlTable(html) {
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const trs = doc.querySelectorAll('tr');
+    if (!trs.length) return null;
+    const out = [];
+    trs.forEach(tr => {
+      const row = [];
+      tr.querySelectorAll('td,th').forEach(td => {
+        // Excel gắn thuộc tính x:num / x:str với giá trị GỐC chưa định dạng
+        let v = td.getAttribute('x:num');
+        if (v == null) v = (td.textContent || '');
+        row.push(v.replace(/\u00a0/g, ' ').trim());
+      });
+      if (row.length) out.push(row);
+    });
+    return out.length ? out : null;
+  } catch { return null; }
+}
+
+function parsePlain(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+  if (lines.length && lines[lines.length - 1] === '') lines.pop();
+  return lines.map(l => l.split('\t'));
+}
+
+/* Đọc file Excel qua SheetJS -> mảng dòng [{a,b} ...] cho bảng rule (2-3 cột) */
+function readExcelToPairs(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const arr = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+        // bỏ dòng tiêu đề nếu ô đầu không giống dữ liệu; giữ đơn giản: lấy tất cả, cột A/B
+        const rows = arr
+          .map(r => ({ a: (r[0] ?? '').toString().trim(), b: (r[1] ?? '').toString().trim() }))
+          .filter(r => r.a !== '');
+        resolve(rows);
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function toast(msg, kind = 'ok', ms = 2600) {
+  const t = el('div', { class: 'flash ' + kind, text: msg });
+  Object.assign(t.style, {
+    position: 'fixed', bottom: '20px', left: '50%', transform: 'translateX(-50%)',
+    zIndex: 200, boxShadow: '0 6px 20px rgba(0,0,0,.2)', minWidth: '240px', textAlign: 'center'
+  });
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+
+function modal({ title, bodyNode, actions }) {
+  const root = $('#modal-root');
+  const mask = el('div', { class: 'modal-mask' });
+  const box = el('div', { class: 'modal' }, [
+    el('div', { class: 'modal-head', text: title }),
+    el('div', { class: 'modal-body' }, [bodyNode]),
+  ]);
+  const foot = el('div', { class: 'modal-foot' });
+  const close = () => mask.remove();
+  (actions || []).forEach(a => {
+    foot.appendChild(el('button', {
+      class: 'btn ' + (a.cls || ''), text: a.label,
+      onclick: () => a.onClick ? a.onClick(close) : close()
+    }));
+  });
+  box.appendChild(foot);
+  mask.appendChild(box);
+  mask.addEventListener('click', e => { if (e.target === mask) close(); });
+  root.appendChild(mask);
+  return close;
+}
+
+
+/* ==================== rules.js ==================== */
+/*
+ * ENGINE ÁP RULE
+ * ---------------------------------------------------------------
+ * Chuyển ký hiệu cột Excel (A, B, ... Z, AA, AB) sang chỉ số 0-based
+ * và áp lần lượt 4 nhóm rule lên bảng dữ liệu chính.
+ * ---------------------------------------------------------------
+ */
+
+/* "A" -> 0, "B" -> 1, ... "Z" -> 25, "AA" -> 26, "AB" -> 27 ... */
+function colToIndex(code) {
+  if (typeof code !== 'string') return -1;
+  code = code.trim().toUpperCase();
+  if (!/^[A-Z]+$/.test(code)) return -1;
+  let n = 0;
+  for (let i = 0; i < code.length; i++) n = n * 26 + (code.charCodeAt(i) - 64);
+  return n - 1;
+}
+
+/* 0 -> "A", 27 -> "AB" */
+function indexToCol(n) {
+  let s = '';
+  n = n + 1;
+  while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+  return s;
+}
+
+/* Chuỗi "AA, AB, AC" -> [26, 27, 28] (bỏ mã không hợp lệ) */
+function parseTargets(str) {
+  if (!str) return [];
+  return String(str).split(/[,;\s]+/).map(s => s.trim()).filter(Boolean)
+    .map(colToIndex).filter(i => i >= 0);
+}
+
+/* Xây map tra cứu từ danh sách dòng {a,b} -> { a(chuẩn hoá): b } */
+function buildLookup(rows) {
+  const map = new Map();
+  for (const r of rows || []) {
+    const a = (r.a ?? '').toString().trim();
+    if (a === '') continue;
+    map.set(a, (r.b ?? '').toString());
+    // thêm khoá chuẩn hoá (bỏ hoa/thường + khoảng trắng) để khớp linh hoạt
+    const norm = a.toLowerCase().replace(/\s+/g, ' ');
+    if (!map.has('~' + norm)) map.set('~' + norm, (r.b ?? '').toString());
+  }
+  return map;
+}
+function lookupValue(map, val) {
+  const s = (val ?? '').toString().trim();
+  if (map.has(s)) return { hit: true, val: map.get(s) };
+  const norm = '~' + s.toLowerCase().replace(/\s+/g, ' ');
+  if (map.has(norm)) return { hit: true, val: map.get(norm) };
+  return { hit: false, val };
+}
+
+/*
+ * Áp toàn bộ rule lên grid.
+ * grid: { headers:[], rows:[[...]] }
+ * rules: { unit, special, currency, replace }  (mỗi cái có targets + rows)
+ * Trả về: { grid, changed:Set("r:c"), warnings:[], rulesApplied:int, currencyBlocks:[] }
+ */
+function applyRules(grid, rules) {
+  const rows = grid.rows.map(r => r.slice());
+  const changed = new Set();
+  const warnings = [];
+  const currencyBlocks = [];   // dòng có tiền tệ = BLOCK (vd VND)
+  let rulesApplied = 0;
+
+  const mark = (ri, ci, oldV, newV) => {
+    if (String(oldV) !== String(newV)) changed.add(ri + ':' + ci);
+  };
+
+  /* ---------- RULE 1: Đơn vị (bảng unit) — thay giá trị theo tra cứu ---------- */
+  {
+    const t = parseTargets(rules.unit?.targets);
+    const map = buildLookup(rules.unit?.rows);
+    if (t.length && map.size) {
+      rulesApplied++;
+      for (let ri = 0; ri < rows.length; ri++)
+        for (const ci of t) {
+          const old = rows[ri][ci];
+          const res = lookupValue(map, old);
+          if (res.hit) { rows[ri][ci] = res.val; mark(ri, ci, old, res.val); }
+        }
+    }
+  }
+
+  /* ---------- RULE 2: Ký tự đặc biệt (bảng special) — thay/bỏ ký tự ---------- */
+  {
+    const t = parseTargets(rules.special?.targets);
+    const pairs = (rules.special?.rows || [])
+      .map(r => ({ a: (r.a ?? '').toString(), b: (r.b ?? '').toString() }))
+      .filter(p => p.a !== '');
+    if (t.length && pairs.length) {
+      rulesApplied++;
+      for (let ri = 0; ri < rows.length; ri++)
+        for (const ci of t) {
+          const old = rows[ri][ci];
+          if (old == null) continue;
+          let s = String(old);
+          for (const p of pairs) s = s.split(p.a).join(p.b); // thay literal, kể cả rỗng
+          if (s !== String(old)) { rows[ri][ci] = s; mark(ri, ci, old, s); }
+        }
+    }
+  }
+
+  /* ---------- RULE 3: Tiền tệ (bảng currency) ---------- */
+  /* Cột đích chứa MÃ tiền tệ (EUR/HKD/VND...). Tra bảng:
+     - nếu giá trị B = số  -> ghi tỷ giá USD (hoặc bạn tuỳ biến quy đổi cột giá trị)
+     - nếu B = "BLOCK"     -> đánh dấu dòng vi phạm (vd VND) */
+  {
+    const t = parseTargets(rules.currency?.targets);
+    const map = buildLookup(rules.currency?.rows);
+    if (t.length && map.size) {
+      rulesApplied++;
+      for (let ri = 0; ri < rows.length; ri++)
+        for (const ci of t) {
+          const old = rows[ri][ci];
+          const res = lookupValue(map, old);
+          if (res.hit) {
+            if (String(res.val).toUpperCase() === 'BLOCK') {
+              currencyBlocks.push({ row: ri, col: ci, cur: String(old).trim() });
+            } else {
+              rows[ri][ci] = res.val; mark(ri, ci, old, res.val);
+            }
+          }
+        }
+    }
+  }
+
+  /* ---------- RULE 4: Thay chuỗi (bảng replace) ---------- */
+  {
+    const t = parseTargets(rules.replace?.targets);
+    const pairs = (rules.replace?.rows || [])
+      .map(r => ({ a: (r.a ?? '').toString(), b: (r.b ?? '').toString() }))
+      .filter(p => p.a !== '');
+    if (t.length && pairs.length) {
+      rulesApplied++;
+      for (let ri = 0; ri < rows.length; ri++)
+        for (const ci of t) {
+          const old = rows[ri][ci];
+          if (old == null) continue;
+          let s = String(old);
+          for (const p of pairs) s = s.split(p.a).join(p.b);
+          if (s !== String(old)) { rows[ri][ci] = s; mark(ri, ci, old, s); }
+        }
+    }
+  }
+
+  return { grid: { headers: grid.headers.slice(), rows }, changed, warnings, rulesApplied, currencyBlocks };
+}
+
+/* Phát hiện chuỗi tiếng Việt có dấu (dùng để bắt lỗi cột Cargo) */
+function hasVietnameseDiacritics(s) {
+  if (s == null) return false;
+  return /[àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựỳýỷỹỵđ]/i.test(String(s));
+}
+
+
+/* ==================== storage.js ==================== */
+/*
+ * LỚP LƯU TRỮ (STORAGE LAYER)
+ * ---------------------------------------------------------------
+ * Toàn bộ ứng dụng chỉ gọi qua đối tượng `Store` bên dưới.
+ * Hiện tại dữ liệu lưu tạm trong trình duyệt (localStorage) để test.
+ *
+ * KHI GHÉP CLOUDFLARE: chỉ cần sửa các hàm trong phần "BACKEND"
+ * thành lời gọi fetch() tới Cloudflare Worker. Giao diện KHÔNG đổi.
+ * Ví dụ đã ghi sẵn trong /worker/worker.js.
+ * ---------------------------------------------------------------
+ */
+
+const LS_PREFIX = 'hhdata::';
+const rk = (k) => LS_PREFIX + k;
+
+function lsGet(key, fallback) {
+  try {
+    const raw = localStorage.getItem(rk(key));
+    return raw == null ? fallback : JSON.parse(raw);
+  } catch { return fallback; }
+}
+function lsSet(key, val) {
+  try { localStorage.setItem(rk(key), JSON.stringify(val)); return true; }
+  catch (e) { console.error('Lưu thất bại', e); return false; }
+}
+
+/* Băm mật khẩu bằng WebCrypto (giống cách Worker sẽ làm trên Cloudflare) */
+async function hashPassword(plain, salt) {
+  salt = salt || crypto.getRandomValues(new Uint8Array(16));
+  const enc = new TextEncoder();
+  const keyMat = await crypto.subtle.importKey('raw', enc.encode(plain), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' }, keyMat, 256);
+  const hashArr = Array.from(new Uint8Array(bits));
+  const saltArr = Array.from(salt);
+  const toHex = a => a.map(b => b.toString(16).padStart(2, '0')).join('');
+  return toHex(saltArr) + ':' + toHex(hashArr);
+}
+async function verifyPassword(plain, stored) {
+  if (!stored || stored.indexOf(':') < 0) return false;
+  const saltHex = stored.split(':')[0];
+  const salt = new Uint8Array(saltHex.match(/.{2}/g).map(h => parseInt(h, 16)));
+  const check = await hashPassword(plain, salt);
+  return check === stored;
+}
+
+/* ============================= BACKEND ============================= */
+/* Thay phần này bằng fetch() tới Cloudflare Worker khi lên production */
+
+const Backend = {
+  async loadUsers()      { return lsGet('users', null); },
+  async saveUsers(u)     { return lsSet('users', u); },
+
+  async loadRules()      { return lsGet('rules', null); },
+  async saveRules(r)     { return lsSet('rules', r); },
+
+  async loadDict()       { return lsGet('dict', null); },
+  async saveDict(d)      { return lsSet('dict', d); },
+
+  /* Database dữ liệu đã upload — dùng để tra trùng mã vận đơn.
+     Trên Cloudflare đây sẽ là bảng D1 daily_data. */
+  async loadManifestKeys() { return lsGet('manifest_keys', {}); },
+  async saveManifestKeys(m){ return lsSet('manifest_keys', m); },
+
+  async loadManifestRows() { return lsGet('manifest_rows', []); },
+  async saveManifestRows(r){ return lsSet('manifest_rows', r); },
+
+  async loadSession()    { return lsGet('session', null); },
+  async saveSession(s)   { return lsSet('session', s); },
+  async clearSession()   { localStorage.removeItem(rk('session')); },
+};
+
+/* ============================= STORE API ============================= */
+/* Đây là API mà toàn bộ giao diện sử dụng. Không phụ thuộc backend cụ thể. */
+
+const Store = {
+  hashPassword, verifyPassword,
+
+  /* ---- Users ---- */
+  async getUsers() {
+    let users = await Backend.loadUsers();
+    if (!users) {
+      const adminHash = await hashPassword('admin');
+      users = [{
+        id: 'admin', name: 'Quản trị viên', passHash: adminHash,
+        role: 'admin', canReport: true, canEdit: true,
+        mustChange: true, active: true, createdAt: Date.now()
+      }];
+      await Backend.saveUsers(users);
+    }
+    return users;
+  },
+  async setUsers(users) { return Backend.saveUsers(users); },
+
+  /* ---- Rules (4 bảng) ---- */
+  async getRules() {
+    let r = await Backend.loadRules();
+    if (!r) {
+      r = {
+        unit:     { targets: '', rows: [ {a:'件',b:'SET'},{a:'千克',b:'KGM'},{a:'码',b:'MTR'},{a:'份',b:'SET'} ] },
+        special:  { targets: '', rows: [ {a:'(',b:''},{a:')',b:''},{a:'/',b:''},{a:'-',b:''},{a:'+',b:''} ] },
+        currency: { targets: '', rows: [ {a:'EUR',b:'1.08'},{a:'HKD',b:'0.128'},{a:'CNY',b:'0.1385'},{a:'VND',b:'BLOCK'} ] },
+        replace:  { targets: '', rows: [] },
+      };
+      await Backend.saveRules(r);
+    }
+    return r;
+  },
+  async setRules(r) { return Backend.saveRules(r); },
+
+  /* ---- Từ điển dịch ---- */
+  async getDict() {
+    let d = await Backend.loadDict();
+    if (!d) { d = { en: [], cn: [] }; await Backend.saveDict(d); }
+    return d;
+  },
+  async setDict(d) { return Backend.saveDict(d); },
+
+  /* ---- Manifest / database dữ liệu ---- */
+  async getManifestKeys()  { return Backend.loadManifestKeys(); },
+  async getManifestRows()  { return Backend.loadManifestRows(); },
+
+  /* Đẩy dữ liệu đã xử lý lên "database". Trả về số dòng thêm mới.
+     keyColIndex = chỉ số cột mã vận đơn (0-based). */
+  async pushManifest(rows, keyColIndex) {
+    const keys = await Backend.loadManifestKeys();
+    const store = await Backend.loadManifestRows();
+    let added = 0;
+    const today = new Date().toISOString().slice(0, 10);
+    for (const row of rows) {
+      const key = String(row[keyColIndex] ?? '').trim();
+      if (!key) continue;
+      const uniq = today + '::' + key;
+      keys[uniq] = { date: today, at: Date.now() };
+      store.push({ key, date: today, at: Date.now(), data: row });
+      added++;
+    }
+    await Backend.saveManifestKeys(keys);
+    await Backend.saveManifestRows(store);
+    return added;
+  },
+
+  /* Kiểm tra 1 mã vận đơn đã tồn tại trong database chưa (cùng ngày) */
+  async keyExists(key) {
+    const keys = await Backend.loadManifestKeys();
+    const today = new Date().toISOString().slice(0, 10);
+    return !!keys[today + '::' + String(key).trim()];
+  },
+
+  /* ---- Session ---- */
+  async getSession()  { return Backend.loadSession(); },
+  async setSession(s) { return Backend.saveSession(s); },
+  async clearSession(){ return Backend.clearSession(); },
+};
+
+
+/* ==================== dataGrid.js ==================== */
+
+/*
+ * Lưới dữ liệu chính (bảng 2 / Nhập liệu).
+ * - Hiển thị theo dòng/cột giống Excel, có mã cột (A,B,..AA) trên tiêu đề
+ * - Sort theo cột (click tiêu đề), filter theo cột (ô nhập dưới tiêu đề)
+ * - Sửa tay từng ô (contenteditable)
+ * - Virtual scroll: chỉ render dòng trong tầm nhìn -> mượt với 2000+ dòng
+ * - Đánh dấu: ô đã đổi bởi rule (cell-changed), ô lỗi (cell-err), dòng trùng (dupe)
+ */
+function DataGrid(host, model) {
+  // model: { headers:[], rows:[[...]], changed:Set, errors:Map("r:c"->'err'|'warn'), dupes:Set(rowIndex) }
+  let sortCol = -1, sortDir = 1;
+  const filters = {};       // colIndex -> chuỗi lọc (lowercase)
+  let view = [];            // chỉ số dòng sau sort+filter
+  const ROW_H = 27;
+  const BUFFER = 8;
+
+  const scroll = el('div', { class: 'grid-scroll big' });
+  host.innerHTML = '';
+  host.appendChild(scroll);
+
+  function computeView() {
+    const n = model.rows.length;
+    view = [];
+    for (let i = 0; i < n; i++) {
+      let ok = true;
+      for (const c in filters) {
+        const f = filters[c];
+        if (!f) continue;
+        const v = (model.rows[i][c] ?? '').toString().toLowerCase();
+        if (v.indexOf(f) < 0) { ok = false; break; }
+      }
+      if (ok) view.push(i);
+    }
+    if (sortCol >= 0) {
+      view.sort((ra, rb) => {
+        const a = model.rows[ra][sortCol] ?? '', b = model.rows[rb][sortCol] ?? '';
+        const na = parseFloat(a), nb = parseFloat(b);
+        let cmp;
+        if (!isNaN(na) && !isNaN(nb) && String(a).trim() !== '' && String(b).trim() !== '') cmp = na - nb;
+        else cmp = String(a).localeCompare(String(b), 'vi');
+        return cmp * sortDir;
+      });
+    }
+  }
+
+  function buildStatic() {
+    const table = el('table', { class: 'grid', style: 'min-width:100%' });
+
+    // hàng mã cột + tiêu đề
+    const thead = el('thead');
+    const trHead = el('tr', {}, el('th', { text: '#', style: 'left:0;position:sticky;z-index:4' }));
+    model.headers.forEach((h, ci) => {
+      const th = el('th', { title: h }, [
+        el('span', { class: 'col-code', text: indexToCol(ci) }),
+        document.createTextNode(h || ''),
+        sortCol === ci ? el('span', { class: 'sort-ind', text: sortDir > 0 ? '▲' : '▼' }) : null,
+      ]);
+      th.addEventListener('click', () => {
+        if (sortCol === ci) sortDir *= -1; else { sortCol = ci; sortDir = 1; }
+        refresh();
+      });
+      trHead.appendChild(th);
+    });
+    thead.appendChild(trHead);
+
+    // hàng filter
+    const trF = el('tr', { class: 'filter-row' }, el('th', { style: 'left:0;position:sticky;z-index:4' }));
+    model.headers.forEach((h, ci) => {
+      const inp = el('input', {
+        placeholder: 'lọc…', value: filters[ci] || '',
+        oninput: e => { filters[ci] = e.target.value.trim().toLowerCase(); refresh(); }
+      });
+      trF.appendChild(el('th', {}, inp));
+    });
+    thead.appendChild(trF);
+    table.appendChild(thead);
+
+    const tbody = el('tbody');
+    table.appendChild(tbody);
+    return { table, tbody };
+  }
+
+  let tbody, spacerTop, spacerBot;
+  function mount() {
+    const { table, tbody: tb } = buildStatic();
+    tbody = tb;
+    scroll.innerHTML = '';
+    scroll.appendChild(table);
+    scroll.onscroll = renderRows;
+  }
+
+  function renderRows() {
+    const total = view.length;
+    const scrollTop = scroll.scrollTop;
+    const viewportH = scroll.clientHeight;
+    const first = Math.max(0, Math.floor(scrollTop / ROW_H) - BUFFER);
+    const last = Math.min(total, Math.ceil((scrollTop + viewportH) / ROW_H) + BUFFER);
+
+    tbody.innerHTML = '';
+    if (first > 0) tbody.appendChild(el('tr', { style: `height:${first * ROW_H}px` }));
+    for (let vi = first; vi < last; vi++) {
+      const ri = view[vi];
+      const tr = el('tr', model.dupes && model.dupes.has(ri) ? { class: 'dupe' } : {});
+      tr.appendChild(el('td', { class: 'rownum', text: (vi + 1) }));
+      for (let ci = 0; ci < model.headers.length; ci++) {
+        const key = ri + ':' + ci;
+        let cls = 'cell';
+        const td = el('td');
+        if (model.errors && model.errors.has(key)) td.className = model.errors.get(key) === 'warn' ? 'cell-warn' : 'cell-err';
+        else if (model.changed && model.changed.has(key)) td.className = 'cell-changed';
+        const cell = el('div', {
+          class: 'cell', contenteditable: model.editable ? 'true' : 'false',
+          text: model.rows[ri][ci] ?? ''
+        });
+        cell.addEventListener('blur', () => {
+          const nv = cell.textContent;
+          if (String(model.rows[ri][ci] ?? '') !== nv) {
+            model.rows[ri][ci] = nv;
+            if (model.onEdit) model.onEdit(ri, ci, nv);
+          }
+        });
+        td.appendChild(cell);
+        tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    const rest = total - last;
+    if (rest > 0) tbody.appendChild(el('tr', { style: `height:${rest * ROW_H}px` }));
+  }
+
+  function refresh() { computeView(); mount(); renderRows(); if (model.onViewChange) model.onViewChange(view.length); }
+
+  refresh();
+  return {
+    refresh,
+    getView: () => view.slice(),
+    setSize: (big) => { scroll.className = 'grid-scroll ' + (big ? 'big' : 'small'); renderRows(); },
+  };
+}
+
+
+/* ==================== ruleTable.js ==================== */
+
+/*
+ * Bảng rule 3 cột: Cột A (giá trị/khoá) | Cột B (thay thế) | + hàng thêm/xoá.
+ * "targets" (danh sách cột đích AA,AB..) nhập ở ô riêng phía trên bảng.
+ * onChange(newState) được gọi mỗi khi dữ liệu đổi.
+ */
+function RuleTable({ title, desc, colA, colB, state, onChange, canEdit }) {
+  const wrap = el('div', { class: 'panel' });
+
+  const head = el('div', { class: 'panel-head' }, [
+    el('div', {}, [
+      el('h2', { text: title }),
+      desc ? el('div', { class: 'desc', text: desc }) : null,
+    ]),
+    el('div', { class: 'spacer' }),
+  ]);
+
+  // ô nhập cột đích
+  const targetInput = el('input', {
+    class: 'inp', style: 'max-width:220px', placeholder: 'VD: AA, AB, AC',
+    value: state.targets || '', disabled: !canEdit,
+    oninput: e => { state.targets = e.target.value; onChange(state); }
+  });
+  head.appendChild(el('div', { style: 'display:flex;align-items:center;gap:8px' }, [
+    el('span', { class: 'desc', text: 'Cột đích trong bảng chính:' }),
+    targetInput,
+  ]));
+  wrap.appendChild(head);
+
+  // toolbar
+  const bodyWrap = el('div', { class: 'panel-body tight' });
+  if (canEdit) {
+    const bar = el('div', { class: 'grid-toolbar' }, [
+      el('button', { class: 'btn btn-sm', text: '+ Thêm dòng', onclick: () => { state.rows.push({ a: '', b: '' }); render(); onChange(state); } }),
+      (() => {
+        const lbl = el('label', { class: 'btn btn-sm', text: '⭱ Upload Excel', style: 'position:relative;overflow:hidden' });
+        const inp = el('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: 'position:absolute;inset:0;opacity:0;cursor:pointer' });
+        inp.addEventListener('change', async e => {
+          const f = e.target.files[0]; if (!f) return;
+          try {
+            const rows = await readExcelToPairs(f);
+            if (!rows.length) { toast('File không có dữ liệu hợp lệ', 'warn'); return; }
+            state.rows = rows; render(); onChange(state);
+            toast('Đã nạp ' + rows.length + ' dòng từ Excel', 'ok');
+          } catch { toast('Không đọc được file', 'bad'); }
+          e.target.value = '';
+        });
+        lbl.appendChild(inp);
+        return lbl;
+      })(),
+      el('button', { class: 'btn btn-sm btn-danger', text: 'Xoá tất cả', onclick: () => { state.rows = []; render(); onChange(state); } }),
+      el('div', { class: 'spacer', style: 'flex:1' }),
+      el('span', { class: 'desc rowcount' }),
+    ]);
+    bodyWrap.appendChild(bar);
+  }
+
+  const tblWrap = el('div', { class: 'rt-wrap' });
+  bodyWrap.appendChild(tblWrap);
+  wrap.appendChild(bodyWrap);
+
+  function render() {
+    const rows = state.rows || [];
+    const table = el('table', { class: 'rt' });
+    const thead = el('thead', {}, el('tr', {}, [
+      el('th', { text: colA, style: 'width:45%' }),
+      el('th', { text: colB, style: 'width:45%' }),
+      canEdit ? el('th', { text: '', style: 'width:44px' }) : null,
+    ]));
+    table.appendChild(thead);
+    const tbody = el('tbody');
+    rows.forEach((r, i) => {
+      const tr = el('tr', {}, [
+        el('td', {}, el('input', {
+          value: r.a ?? '', disabled: !canEdit,
+          oninput: e => { r.a = e.target.value; onChange(state); }
+        })),
+        el('td', {}, el('input', {
+          value: r.b ?? '', disabled: !canEdit, placeholder: colB.includes('rỗng') ? '(để trống = xoá)' : '',
+          oninput: e => { r.b = e.target.value; onChange(state); }
+        })),
+        canEdit ? el('td', { class: 'act' }, el('button', {
+          class: 'icon-btn del', text: '✕', title: 'Xoá dòng',
+          onclick: () => { state.rows.splice(i, 1); render(); onChange(state); }
+        })) : null,
+      ]);
+      tbody.appendChild(tr);
+    });
+    if (!rows.length) {
+      tbody.appendChild(el('tr', {}, el('td', { colspan: canEdit ? 3 : 2, class: 'muted', style: 'padding:16px;text-align:center', text: 'Chưa có dòng nào. Bấm “+ Thêm dòng” hoặc upload Excel.' })));
+    }
+    table.appendChild(tbody);
+    tblWrap.innerHTML = '';
+    tblWrap.appendChild(table);
+    const rc = wrap.querySelector('.rowcount');
+    if (rc) rc.textContent = rows.length + ' dòng';
+  }
+
+  render();
+  return wrap;
+}
+
+
+/* ==================== tabRules.js ==================== */
+
+async function renderRulesTab(host, State) {
+  host.innerHTML = '';
+  const canEdit = State.user.role === 'admin' || State.user.canEdit;
+
+  const rules = await Store.getRules();
+  const save = () => Store.setRules(rules);
+
+  host.appendChild(el('div', { class: 'flash warn', html:
+    'Mỗi bảng có ô <b>“Cột đích trong bảng chính”</b> — nhập ký hiệu cột Excel (VD: <b>AA, AB</b>). ' +
+    'Rule chỉ áp lên đúng các cột đó. ' + (canEdit ? '' : '<b>Bạn không có quyền sửa rule.</b>') }));
+
+  // Bảng 1 — Đơn vị (件 -> SET ...)
+  host.appendChild(RuleTable({
+    title: 'Bảng 1 — Quy đổi đơn vị (VLOOKUP)',
+    desc: 'Tìm giá trị ở Cột A trong bảng chính, thay bằng Cột B. VD: 件 → SET',
+    colA: 'Cột A — Giá trị gốc', colB: 'Cột B — Thay bằng',
+    state: rules.unit, canEdit, onChange: save,
+  }));
+
+  // Bảng 2 — Ký tự đặc biệt
+  host.appendChild(RuleTable({
+    title: 'Bảng 2 — Xử lý ký tự đặc biệt',
+    desc: 'Trong cột đích, thay Cột A bằng Cột B. Để trống Cột B = xoá ký tự đó. VD: ( ) / - +',
+    colA: 'Cột A — Ký tự', colB: 'Cột B — Thay bằng (trống = rỗng)',
+    state: rules.special, canEdit, onChange: save,
+  }));
+
+  // Bảng 3 — Tiền tệ
+  host.appendChild(RuleTable({
+    title: 'Bảng 3 — Quy đổi tiền tệ sang USD',
+    desc: 'Cột A là mã tiền tệ (EUR/HKD/CNY...), Cột B là tỷ giá USD. Ghi BLOCK để chặn (VD: VND).',
+    colA: 'Cột A — Mã tiền tệ', colB: 'Cột B — Tỷ giá USD / BLOCK',
+    state: rules.currency, canEdit, onChange: save,
+  }));
+
+  // Bảng 4 — Thay chuỗi
+  host.appendChild(RuleTable({
+    title: 'Bảng 4 — Thay chuỗi ký tự',
+    desc: 'Trong cột đích, tìm chuỗi ở Cột A thay bằng Cột B.',
+    colA: 'Cột A — Chuỗi gốc', colB: 'Cột B — Thay bằng',
+    state: rules.replace, canEdit, onChange: save,
+  }));
+}
+
+
+/* ==================== tabAdmin.js ==================== */
+
+async function renderAdminTab(host, State) {
+  host.innerHTML = '';
+  let users = await Store.getUsers();
+
+  const panel = el('div', { class: 'panel' });
+  panel.appendChild(el('div', { class: 'panel-head' }, [
+    el('h2', { text: '4. Admin — Quản lý người dùng & phân quyền' }),
+    el('div', { class: 'spacer', style: 'flex:1' }),
+    el('button', { class: 'btn btn-sm btn-primary', text: '+ Thêm người dùng', onclick: () => editUser(null) }),
+    (() => {
+      const lbl = el('label', { class: 'btn btn-sm', text: '⭱ Upload danh sách', style: 'position:relative;overflow:hidden' });
+      const inp = el('input', { type: 'file', accept: '.xlsx,.xls,.csv', style: 'position:absolute;inset:0;opacity:0;cursor:pointer' });
+      inp.addEventListener('change', async e => {
+        const f = e.target.files[0]; if (!f) return;
+        await bulkImport(f); e.target.value = '';
+      });
+      lbl.appendChild(inp);
+      return lbl;
+    })(),
+  ]));
+
+  const body = el('div', { class: 'panel-body tight' });
+  panel.appendChild(body);
+  host.appendChild(panel);
+
+  host.appendChild(el('div', { class: 'flash warn', html:
+    'Upload danh sách Excel: <b>Cột A = Tên/ID</b>, <b>Cột B = Tên hiển thị</b>. ' +
+    'Người dùng mới nhận mật khẩu tạm mặc định <b>123456</b> và bị buộc đổi khi đăng nhập lần đầu.' }));
+
+  function render() {
+    const t = el('table', { class: 'users' });
+    t.appendChild(el('thead', {}, el('tr', {}, [
+      el('th', { text: 'ID / Tên đăng nhập' }),
+      el('th', { text: 'Tên hiển thị' }),
+      el('th', { text: 'Quyền' }),
+      el('th', { text: 'Xử lý dữ liệu' }),
+      el('th', { text: 'Kéo báo cáo' }),
+      el('th', { text: 'Trạng thái' }),
+      el('th', { text: '' }),
+    ])));
+    const tb = el('tbody');
+    users.forEach(u => {
+      tb.appendChild(el('tr', {}, [
+        el('td', {}, el('b', { text: u.id })),
+        el('td', { text: u.name }),
+        el('td', {}, el('span', { class: 'chip ' + u.role, text: u.role === 'admin' ? 'Quản trị' : u.role === 'viewer' ? 'Chỉ xem' : 'Nhập liệu' })),
+        el('td', {}, el('span', { class: 'chip ' + (u.canEdit ? '' : 'off'), text: u.canEdit ? 'Có' : 'Không' })),
+        el('td', {}, el('span', { class: 'chip ' + (u.canReport ? '' : 'off'), text: u.canReport ? 'Có' : 'Không' })),
+        el('td', {}, el('span', { class: 'chip ' + (u.active ? 'viewer' : 'off'), text: u.active ? 'Hoạt động' : 'Khoá' })),
+        el('td', { style: 'white-space:nowrap' }, [
+          el('button', { class: 'icon-btn', title: 'Sửa', text: '✎', onclick: () => editUser(u) }),
+          el('button', { class: 'icon-btn', title: 'Đặt lại mật khẩu', text: '🔑', onclick: () => resetPass(u) }),
+          u.id !== 'admin' ? el('button', { class: 'icon-btn del', title: 'Xoá', text: '✕', onclick: () => delUser(u) }) : null,
+        ]),
+      ]));
+    });
+    t.appendChild(tb);
+    body.innerHTML = '';
+    body.appendChild(t);
+  }
+
+  function editUser(u) {
+    const isNew = !u;
+    const d = u || { id: '', name: '', role: 'editor', canEdit: true, canReport: true, active: true };
+    const box = el('div', {}, [
+      el('label', { class: 'fld' }, [el('span', { text: 'ID / Tên đăng nhập' }),
+        el('input', { id: 'f-id', class: 'inp', value: d.id, disabled: !isNew })]),
+      el('label', { class: 'fld' }, [el('span', { text: 'Tên hiển thị' }),
+        el('input', { id: 'f-name', class: 'inp', value: d.name })]),
+      el('label', { class: 'fld' }, [el('span', { text: 'Quyền' }),
+        (() => {
+          const s = el('select', { id: 'f-role', class: 'inp' });
+          [['editor', 'Nhập liệu'], ['viewer', 'Chỉ xem'], ['admin', 'Quản trị']]
+            .forEach(([v, t]) => s.appendChild(el('option', { value: v, text: t, ...(d.role === v ? { selected: 'selected' } : {}) })));
+          return s;
+        })()]),
+      el('label', { style: 'display:flex;gap:8px;align-items:center;margin-bottom:10px' },
+        [el('input', { id: 'f-edit', type: 'checkbox', ...(d.canEdit ? { checked: 'checked' } : {}) }), el('span', { text: 'Được xử lý / upload dữ liệu' })]),
+      el('label', { style: 'display:flex;gap:8px;align-items:center;margin-bottom:10px' },
+        [el('input', { id: 'f-report', type: 'checkbox', ...(d.canReport ? { checked: 'checked' } : {}) }), el('span', { text: 'Được kéo báo cáo' })]),
+      el('label', { style: 'display:flex;gap:8px;align-items:center' },
+        [el('input', { id: 'f-active', type: 'checkbox', ...(d.active ? { checked: 'checked' } : {}) }), el('span', { text: 'Tài khoản hoạt động' })]),
+      isNew ? el('p', { class: 'upload-hint', text: 'Mật khẩu tạm mặc định: 123456 (buộc đổi khi đăng nhập lần đầu).' }) : null,
+    ]);
+    modal({
+      title: isNew ? 'Thêm người dùng' : 'Sửa người dùng', bodyNode: box,
+      actions: [
+        { label: 'Huỷ' },
+        { label: 'Lưu', cls: 'btn-primary', onClick: async (c) => {
+          const id = box.querySelector('#f-id').value.trim();
+          const name = box.querySelector('#f-name').value.trim();
+          if (!id) { toast('Cần ID', 'warn'); return; }
+          if (isNew && users.some(x => x.id.toLowerCase() === id.toLowerCase())) { toast('ID đã tồn tại', 'bad'); return; }
+          const role = box.querySelector('#f-role').value;
+          const canEdit = box.querySelector('#f-edit').checked;
+          const canReport = box.querySelector('#f-report').checked;
+          const active = box.querySelector('#f-active').checked;
+          if (isNew) {
+            users.push({ id, name: name || id, role, canEdit, canReport, active, mustChange: true,
+              passHash: await Store.hashPassword('123456'), createdAt: Date.now() });
+          } else {
+            const idx = users.findIndex(x => x.id === d.id);
+            users[idx] = { ...users[idx], name: name || id, role, canEdit, canReport, active };
+          }
+          await Store.setUsers(users);
+          render(); c(); toast('Đã lưu', 'ok');
+        }},
+      ]
+    });
+  }
+
+  function resetPass(u) {
+    modal({
+      title: 'Đặt lại mật khẩu', bodyNode: el('div', {}, [
+        el('p', { text: 'Đặt lại mật khẩu cho ' + u.name + ' (' + u.id + ')?' }),
+        el('p', { class: 'muted', text: 'Mật khẩu sẽ về 123456 và người dùng buộc đổi khi đăng nhập.' }),
+      ]),
+      actions: [{ label: 'Huỷ' }, { label: 'Đặt lại', cls: 'btn-danger', onClick: async (c) => {
+        const idx = users.findIndex(x => x.id === u.id);
+        users[idx].passHash = await Store.hashPassword('123456');
+        users[idx].mustChange = true;
+        await Store.setUsers(users); c(); toast('Đã đặt lại mật khẩu', 'ok');
+      }}]
+    });
+  }
+
+  function delUser(u) {
+    modal({
+      title: 'Xoá người dùng', bodyNode: el('p', { text: 'Xoá ' + u.name + ' (' + u.id + ')? Không thể hoàn tác.' }),
+      actions: [{ label: 'Huỷ' }, { label: 'Xoá', cls: 'btn-danger', onClick: async (c) => {
+        users = users.filter(x => x.id !== u.id);
+        await Store.setUsers(users); render(); c(); toast('Đã xoá', 'ok');
+      }}]
+    });
+  }
+
+  async function bulkImport(f) {
+    try {
+      const rows = await readExcelToPairs(f);
+      let added = 0;
+      for (const r of rows) {
+        const id = r.a; if (!id || users.some(x => x.id.toLowerCase() === id.toLowerCase())) continue;
+        users.push({ id, name: r.b || id, role: 'editor', canEdit: true, canReport: false,
+          active: true, mustChange: true, passHash: await Store.hashPassword('123456'), createdAt: Date.now() });
+        added++;
+      }
+      await Store.setUsers(users); render();
+      toast('Đã thêm ' + added + ' người dùng', 'ok');
+    } catch { toast('Không đọc được file', 'bad'); }
+  }
+
+  render();
+}
+
+
+/* ==================== tabInput.js ==================== */
+
+async function renderInputTab(host, State) {
+  host.innerHTML = '';
+  const canEdit = State.user.role === 'admin' || State.user.canEdit;
+
+  // model dữ liệu chính
+  const M = {
+    headers: [], rows: [],
+    changed: new Set(), errors: new Map(), dupes: new Set(),
+    editable: canEdit, onEdit: null, onViewChange: null,
+  };
+  let gridApi = null;
+  let failedRows = [];   // {row:[], reasons:[]}
+  let keyColIndex = 1;   // cột mã vận đơn mặc định = B (index 1)
+
+  /* ============ BẢNG 1: Dán clipboard ============ */
+  const panel1 = el('div', { class: 'panel' });
+  panel1.appendChild(el('div', { class: 'panel-head' }, [
+    el('h2', { text: 'Bảng 1 — Dán dữ liệu từ Excel' }),
+    el('div', { class: 'desc', text: 'Bấm vào ô, dán (Ctrl+V) nguyên sheet đã copy từ Excel.' }),
+    el('div', { class: 'spacer', style: 'flex:1' }),
+    el('button', { class: 'btn btn-sm btn-danger', text: 'Xoá dữ liệu', onclick: clearAll }),
+  ]));
+  const pasteBox = el('div', { class: 'paste-box', contenteditable: 'true', tabindex: '0' },
+    el('span', {}, [el('strong', { text: 'Bấm vào đây rồi dán' }), document.createTextNode('Dữ liệu được xử lý ngay trên máy.')]));
+  const flash1 = el('div');
+  panel1.appendChild(el('div', { class: 'panel-body' }, [pasteBox, flash1]));
+  host.appendChild(panel1);
+
+  pasteBox.addEventListener('paste', e => {
+    e.preventDefault();
+    const data = parseClipboard(e.clipboardData || window.clipboardData);
+    pasteBox.innerHTML = '<span><strong>Bấm vào đây rồi dán</strong>Dữ liệu được xử lý ngay trên máy.</span>';
+    if (!data || !data.rows.length) {
+      flash1.innerHTML = '<div class="flash bad">Không nhận được dữ liệu. Hãy copy trong Excel trước.</div>';
+      return;
+    }
+    loadData(data);
+    flash1.innerHTML = '<div class="flash ok">✓ Upload thành công — ' + data.rows.length + ' dòng × ' + data.headers.length + ' cột.</div>';
+  });
+
+  /* ============ BẢNG 2: Lưới dữ liệu chính ============ */
+  const panel2 = el('div', { class: 'panel' });
+  const stat2 = el('div', { style: 'display:flex;gap:10px;flex-wrap:wrap;align-items:center' });
+  panel2.appendChild(el('div', { class: 'panel-head' }, [
+    el('h2', { text: 'Bảng 2 — Dữ liệu chính' }),
+    el('div', { class: 'spacer', style: 'flex:1' }),
+    stat2,
+  ]));
+
+  const toolbar2 = el('div', { class: 'grid-toolbar' }, [
+    el('button', { class: 'btn btn-sm btn-primary', id: 'btn-process', text: 'Xử lý dữ liệu', onclick: processData, disabled: !canEdit }),
+    el('span', { id: 'process-result', class: 'desc' }),
+    el('div', { class: 'spacer', style: 'flex:1' }),
+    el('label', { class: 'desc', style: 'display:flex;align-items:center;gap:6px' }, [
+      document.createTextNode('Cột mã vận đơn:'),
+      (() => {
+        const i = el('input', { class: 'inp', style: 'width:70px;padding:4px 8px', value: 'B',
+          title: 'Ký hiệu cột Excel chứa mã vận đơn' });
+        i.addEventListener('change', () => { const idx = colToIndex(i.value); if (idx >= 0) keyColIndex = idx; });
+        return i;
+      })(),
+    ]),
+    el('button', { class: 'btn btn-sm', text: '⤢ To / nhỏ', onclick: () => { big = !big; gridApi && gridApi.setSize(big); } }),
+  ]);
+  panel2.appendChild(toolbar2);
+  const gridHost = el('div');
+  panel2.appendChild(gridHost);
+
+  // dòng đếm chưa dịch + nút upload
+  const footer2 = el('div', { class: 'grid-toolbar', style: 'border-top:1px solid var(--line-soft);border-bottom:none' }, [
+    el('button', { class: 'btn btn-ok', id: 'btn-upload', text: 'UPLOAD MANIFEST', onclick: uploadManifest, disabled: !canEdit }),
+    el('div', { class: 'spacer', style: 'flex:1' }),
+    el('div', { class: 'stat' }, [
+      document.createTextNode('SL đơn hàng chưa dịch: '),
+      el('b', { id: 'untranslated', text: '0' }),
+    ]),
+  ]);
+  panel2.appendChild(footer2);
+  host.appendChild(panel2);
+  let big = true;
+
+  /* ============ BẢNG 4: Dòng lỗi (đặt trước bảng 3 về mặt luồng, hiển thị sau) ============ */
+  const panel4 = el('div', { class: 'panel' });
+  panel4.appendChild(el('div', { class: 'panel-head' }, [
+    el('h2', { text: 'Bảng 4 — Dòng vi phạm' }),
+    el('div', { class: 'desc', text: 'Trùng mã vận đơn / tiền tệ VND / tiếng Việt có dấu ở cột Cargo. Bấm ⬆ để duyệt cho qua.' }),
+    el('div', { class: 'spacer', style: 'flex:1' }),
+    el('button', { class: 'btn btn-sm btn-danger', text: 'Delete ALL', onclick: () => { failedRows = []; renderFailed(); } }),
+  ]));
+  const failBody = el('div', { class: 'panel-body tight' });
+  panel4.appendChild(failBody);
+  host.appendChild(panel4);
+
+  /* ============ BẢNG 3: Dịch ============ */
+  const panel3 = el('div', { class: 'panel' });
+  let trMode = 'en';
+  panel3.appendChild(el('div', { class: 'panel-head' }, [
+    el('h2', { text: 'Bảng 3 — Dịch tên hàng' }),
+    el('div', { class: 'spacer', style: 'flex:1' }),
+    (() => {
+      const seg = el('div', { class: 'seg' });
+      const bEn = el('button', { class: 'on', text: 'EN → VN' });
+      const bCn = el('button', { text: 'CN → VN' });
+      bEn.onclick = () => { trMode = 'en'; bEn.classList.add('on'); bCn.classList.remove('on'); doTranslate(); };
+      bCn.onclick = () => { trMode = 'cn'; bCn.classList.add('on'); bEn.classList.remove('on'); doTranslate(); };
+      seg.append(bEn, bCn);
+      return seg;
+    })(),
+    el('button', { class: 'btn btn-sm btn-primary', text: 'Dịch', onclick: doTranslate }),
+  ]));
+  const trIn = el('textarea', { placeholder: 'Dán tên hàng cần dịch vào đây (mỗi dòng một tên)…' });
+  const trOut = el('textarea', { placeholder: 'Kết quả dịch — quét cột này copy sang Bảng 2 theo đúng thứ tự dòng.', readonly: 'readonly' });
+  panel3.appendChild(el('div', { class: 'panel-body' }, [
+    el('p', { class: 'desc', style: 'margin:0 0 8px', text: 'Cột A: tên gốc — Cột B: bản dịch (dò trong từ điển). Không tìm thấy sẽ giữ nguyên và đánh dấu ⚠.' }),
+    el('div', { class: 'tr-cols' }, [trIn, trOut]),
+  ]));
+  host.appendChild(panel3);
+
+  /* ================= Hàm xử lý ================= */
+  function loadData(data) {
+    M.headers = data.headers;
+    M.rows = data.rows;
+    M.changed = new Set(); M.errors = new Map(); M.dupes = new Set();
+    failedRows = [];
+    gridApi = DataGrid(gridHost, M);
+    gridApi.setSize(big);
+    updateStats();
+    renderFailed();
+    $('#process-result').textContent = '';
+    updateUntranslated();
+  }
+
+  function clearAll() {
+    M.headers = []; M.rows = []; M.changed.clear(); M.errors.clear(); M.dupes.clear();
+    failedRows = [];
+    gridHost.innerHTML = '<div class="panel-body muted">Chưa có dữ liệu. Dán vào Bảng 1 ở trên.</div>';
+    flash1.innerHTML = '';
+    updateStats(); renderFailed(); updateUntranslated();
+    $('#process-result').textContent = '';
+  }
+
+  function updateStats() {
+    stat2.innerHTML = '';
+    stat2.appendChild(el('span', { class: 'stat', html: 'Dòng: <b>' + M.rows.length + '</b>' }));
+    stat2.appendChild(el('span', { class: 'stat', html: 'Cột: <b>' + M.headers.length + '</b>' }));
+    if (M.dupes.size) stat2.appendChild(el('span', { class: 'badge bad', text: M.dupes.size + ' trùng' }));
+  }
+
+  async function processData() {
+    if (!M.rows.length) { toast('Chưa có dữ liệu', 'warn'); return; }
+    const rules = await Store.getRules();
+    const res = applyRules({ headers: M.headers, rows: M.rows }, rules);
+    M.rows = res.grid.rows;
+    M.changed = res.changed;
+
+    // Kiểm tra vi phạm -> đẩy xuống bảng 4
+    await detectViolations(res.currencyBlocks);
+
+    gridApi = DataGrid(gridHost, M);
+    gridApi.setSize(big);
+    updateStats();
+    updateUntranslated();
+    $('#process-result').innerHTML = '<span class="badge ok">Đã hoàn thành ' + res.rulesApplied + ' rule</span>';
+  }
+
+  async function detectViolations(currencyBlocks) {
+    M.errors = new Map();
+    M.dupes = new Set();
+    const violated = new Map();   // rowIndex -> [reasons]
+    const addReason = (ri, reason, ci) => {
+      if (!violated.has(ri)) violated.set(ri, []);
+      violated.get(ri).push(reason);
+      if (ci != null) M.errors.set(ri + ':' + ci, 'err');
+    };
+
+    // 1) tiền tệ BLOCK (vd VND)
+    for (const b of currencyBlocks) addReason(b.row, 'Tiền tệ ' + b.cur + ' bị chặn', b.col);
+
+    // 2) trùng mã vận đơn với database
+    for (let ri = 0; ri < M.rows.length; ri++) {
+      const key = String(M.rows[ri][keyColIndex] ?? '').trim();
+      if (!key) continue;
+      const exists = await Store.keyExists(key);
+      if (exists) { addReason(ri, 'Trùng mã vận đơn trong database', keyColIndex); M.dupes.add(ri); }
+    }
+
+    // 3) tiếng Việt có dấu ở cột Cargo (mặc định cột AQ = index 42) — có thể chỉnh
+    const cargoIdx = colToIndex('AQ');
+    if (cargoIdx >= 0 && cargoIdx < M.headers.length) {
+      for (let ri = 0; ri < M.rows.length; ri++) {
+        if (hasVietnameseDiacritics(M.rows[ri][cargoIdx])) addReason(ri, 'Cột Cargo có tiếng Việt có dấu', cargoIdx);
+      }
+    }
+
+    // build failedRows và bỏ khỏi bảng chính
+    const failIdx = Array.from(violated.keys()).sort((a, b) => b - a);
+    failedRows = [];
+    for (const ri of failIdx) {
+      failedRows.push({ row: M.rows[ri].slice(), reasons: violated.get(ri) });
+    }
+    // xoá khỏi bảng 2 (từ cuối lên để không lệch chỉ số)
+    for (const ri of failIdx) M.rows.splice(ri, 1);
+    failedRows.reverse();
+
+    // reset errors map vì chỉ số đã đổi sau khi splice; đánh dấu lại đơn giản: bỏ
+    M.errors = new Map();
+    renderFailed();
+  }
+
+  function renderFailed() {
+    failBody.innerHTML = '';
+    if (!failedRows.length) {
+      failBody.appendChild(el('div', { class: 'panel-body muted', text: 'Không có dòng vi phạm.' }));
+      return;
+    }
+    const t = el('table', { class: 'fail' });
+    t.appendChild(el('thead', {}, el('tr', {}, [
+      el('th', { text: '', style: 'width:44px' }),
+      el('th', { text: 'Lý do vi phạm' }),
+      el('th', { text: 'Mã vận đơn' }),
+      el('th', { text: 'Xem trước dòng' }),
+    ])));
+    const tb = el('tbody');
+    failedRows.forEach((f, i) => {
+      tb.appendChild(el('tr', {}, [
+        el('td', { style: 'text-align:center' }, el('button', {
+          class: 'icon-btn', title: 'Duyệt cho qua — chuyển lên Bảng 2', text: '⬆',
+          onclick: () => approveRow(i)
+        })),
+        el('td', {}, el('span', { class: 'reason', text: f.reasons.join('; ') })),
+        el('td', { text: String(f.row[keyColIndex] ?? '') }),
+        el('td', { class: 'muted', text: f.row.slice(0, 6).join(' | ').slice(0, 80) + '…' }),
+      ]));
+    });
+    t.appendChild(tb);
+    failBody.appendChild(t);
+  }
+
+  function approveRow(i) {
+    const f = failedRows[i];
+    M.rows.push(f.row);
+    failedRows.splice(i, 1);
+    gridApi = DataGrid(gridHost, M);
+    gridApi.setSize(big);
+    updateStats();
+    renderFailed();
+    updateUntranslated();
+    toast('Đã chuyển 1 dòng lên Bảng 2', 'ok');
+  }
+
+  async function doTranslate() {
+    const dict = await Store.getDict();
+    const list = trMode === 'en' ? dict.en : dict.cn;
+    const map = new Map(list.map(r => [(r.a || '').toLowerCase().trim(), r.b]));
+    const lines = trIn.value.split('\n');
+    const out = lines.map(line => {
+      const s = line.trim();
+      if (!s) return '';
+      const hit = map.get(s.toLowerCase());
+      return hit != null ? hit : (s + '  ⚠');
+    });
+    trOut.value = out.join('\n');
+  }
+
+  function updateUntranslated() {
+    // đếm cột AV (index 47) đang trống nhưng cột mã vận đơn có data
+    const avIdx = colToIndex('AV');
+    let count = 0;
+    if (avIdx >= 0 && avIdx < M.headers.length) {
+      for (let ri = 0; ri < M.rows.length; ri++) {
+        const hasKey = String(M.rows[ri][keyColIndex] ?? '').trim() !== '';
+        const avEmpty = String(M.rows[ri][avIdx] ?? '').trim() === '';
+        if (hasKey && avEmpty) count++;
+      }
+    }
+    const node = document.getElementById('untranslated');
+    if (node) { node.textContent = count; node.style.color = count === 0 ? 'var(--ok)' : 'var(--bad)'; }
+  }
+  M.onEdit = () => updateUntranslated();
+
+  async function uploadManifest() {
+    if (!M.rows.length) { toast('Chưa có dữ liệu', 'warn'); return; }
+    const box = el('div', {}, [
+      el('p', { text: 'Xác nhận đẩy dữ liệu lên database?' }),
+      el('table', { class: 'confirm-tbl' }, [
+        el('tr', {}, [el('td', { text: 'Số dòng sẽ đẩy' }), el('td', { text: M.rows.length })]),
+        el('tr', {}, [el('td', { text: 'Số cột' }), el('td', { text: M.headers.length })]),
+        el('tr', {}, [el('td', { text: 'Dòng còn treo ở Bảng 4' }), el('td', { text: failedRows.length })]),
+      ]),
+      failedRows.length ? el('p', { class: 'muted', text: 'Lưu ý: ' + failedRows.length + ' dòng vi phạm sẽ KHÔNG được đẩy lên.' }) : null,
+    ]);
+    modal({
+      title: 'Xác nhận UPLOAD MANIFEST', bodyNode: box,
+      actions: [
+        { label: 'RECHECK — quay lại' },
+        { label: 'OK — Upload', cls: 'btn-ok', onClick: async (c) => {
+          const added = await Store.pushManifest(M.rows, keyColIndex);
+          c();
+          toast('Đã upload ' + added + ' dòng lên database', 'ok', 3200);
+          $('#process-result').innerHTML = '<span class="badge ok">Đã upload ' + added + ' dòng</span>';
+        }},
+      ]
+    });
+  }
+
+  // trạng thái ban đầu
+  clearAll();
+}
+
+
+/* ==================== app.js ==================== */
+
+const State = { user: null };
+
+/* ---------------- Đăng nhập ---------------- */
+async function doLogin() {
+  const id = $('#login-user').value.trim();
+  const pw = $('#login-pass').value;
+  const msg = $('#login-msg');
+  msg.textContent = '';
+  if (!id || !pw) { msg.textContent = 'Nhập đủ tên đăng nhập và mật khẩu.'; return; }
+
+  const users = await Store.getUsers();
+  const u = users.find(x => x.id.toLowerCase() === id.toLowerCase());
+  if (!u || !u.active) { msg.textContent = 'Tài khoản không tồn tại hoặc đã bị khoá.'; return; }
+
+  const ok = await Store.verifyPassword(pw, u.passHash);
+  if (!ok) { msg.textContent = 'Sai mật khẩu.'; return; }
+
+  await Store.setSession({ id: u.id, at: Date.now() });
+  State.user = u;
+
+  if (u.mustChange) { await forceChangePassword(u); }
+  enterApp();
+}
+
+async function forceChangePassword(u) {
+  return new Promise(resolve => {
+    const box = el('div', {}, [
+      el('p', { class: 'muted', text: 'Đây là lần đăng nhập đầu tiên. Vui lòng đặt mật khẩu cá nhân mới.' }),
+      el('label', { class: 'fld' }, [el('span', { text: 'Mật khẩu mới' }), el('input', { id: 'np1', type: 'password', class: 'inp' })]),
+      el('label', { class: 'fld' }, [el('span', { text: 'Nhập lại mật khẩu' }), el('input', { id: 'np2', type: 'password', class: 'inp' })]),
+    ]);
+    (({ modal }) => {
+      const close = modal({
+        title: 'Đổi mật khẩu bắt buộc', bodyNode: box,
+        actions: [{
+          label: 'Lưu mật khẩu', cls: 'btn-primary', onClick: async (c) => {
+            const p1 = box.querySelector('#np1').value, p2 = box.querySelector('#np2').value;
+            if (p1.length < 4) { toast('Mật khẩu tối thiểu 4 ký tự', 'warn'); return; }
+            if (p1 !== p2) { toast('Hai mật khẩu không khớp', 'bad'); return; }
+            const users = await Store.getUsers();
+            const idx = users.findIndex(x => x.id === u.id);
+            users[idx].passHash = await Store.hashPassword(p1);
+            users[idx].mustChange = false;
+            await Store.setUsers(users);
+            State.user = users[idx];
+            toast('Đã đổi mật khẩu', 'ok');
+            c(); resolve();
+          }
+        }]
+      });
+    });
+  })({ modal });
+}
+
+function enterApp() {
+  $('#login-screen').classList.add('hidden');
+  $('#app').classList.remove('hidden');
+  $('#who').textContent = State.user.name + ' (' + roleLabel(State.user) + ')';
+  applyPermissions();
+  buildAllTabs();
+  switchTab('input');
+}
+
+function roleLabel(u) {
+  if (u.role === 'admin') return 'Quản trị';
+  if (u.role === 'viewer') return 'Chỉ xem';
+  return 'Nhập liệu';
+}
+
+function applyPermissions() {
+  // chỉ admin thấy tab Admin
+  const adminTabBtn = $$('#tabs .tab').find(b => b.dataset.tab === 'admin');
+  if (adminTabBtn) adminTabBtn.style.display = State.user.role === 'admin' ? '' : 'none';
+}
+
+/* ---------------- Chuyển tab ---------------- */
+function switchTab(name) {
+  $$('#tabs .tab').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  $$('.tabpane').forEach(p => p.classList.remove('active'));
+  $('#tab-' + name).classList.add('active');
+}
+
+function buildAllTabs() {
+  renderInputTab($('#tab-input'), State);
+  renderMecTab($('#tab-mec'));
+  renderRulesTab($('#tab-rules'), State);
+  if (State.user.role === 'admin') renderAdminTab($('#tab-admin'), State);
+}
+
+function renderMecTab(host) {
+  host.innerHTML = '';
+  host.appendChild(el('div', { class: 'panel' }, [
+    el('div', { class: 'panel-head' }, el('h2', { text: '2. Kéo MEC' })),
+    el('div', { class: 'panel-body' }, [
+      el('p', { class: 'muted', text: 'Phần này sẽ được thiết lập sau khi bạn cung cấp rule cho MEC.' }),
+      el('p', { class: 'muted', text: 'Cấu trúc đã sẵn sàng để ghép chức năng vào.' }),
+    ]),
+  ]));
+}
+
+/* ---------------- Khởi động ---------------- */
+function boot() {
+  $('#login-btn').addEventListener('click', doLogin);
+  $('#login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  $('#logout-btn').addEventListener('click', async () => {
+    await Store.clearSession(); location.reload();
+  });
+  $$('#tabs .tab').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+  // đảm bảo admin mặc định tồn tại
+  Store.getUsers();
+}
+boot();
+
+
+})();
+</script>
+</body>
+</html>
