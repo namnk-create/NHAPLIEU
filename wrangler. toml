@@ -13,4 +13,4 @@ not_found_handling = "single-page-application"
 [[d1_databases]]
 binding = "DB"
 database_name = "nhaplieu"
-database_id = "DAN_DATABASE_ID_VAO_DAY"
+database_id = "5640b6eb-d2b0-4c12-b2c6-6111c674a3b8"
