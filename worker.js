@@ -1,14 +1,15 @@
 /* =========================================================================
- * BẢN VÁ: parseTSVToTable — dán clipboard Excel không bị vỡ dòng
+ * BẢN VÁ v2: parseTSVToTable — dán clipboard Excel không bị vỡ dòng
  * -------------------------------------------------------------------------
  * Thay thế NGUYÊN hàm parseTSVToTable cũ trong INDEX_HTML (phần util.js).
  *
- * Sửa 2 lỗi:
- *  1. Dấu " lẻ ở GIỮA ô làm parser bật chế độ quote -> lệch toàn bộ tab/newline
- *     phía sau. Nay chỉ mở quote khi " đứng ở ĐẦU ô, và chỉ đóng khi ký tự kế
- *     tiếp là Tab / xuống dòng / hết chuỗi. Quote lẻ khác được giữ nguyên.
- *  2. Ô có xuống dòng (Alt+Enter) nhưng không được Excel bọc quote -> bị cắt
- *     thành dòng mới. Nay các dòng thiếu cột được GHÉP lại với dòng trước.
+ * Lỗi đã sửa:
+ *  1. Dấu " lẻ giữa ô (VD: SIZE 5" TEXTURED) làm parser cũ bật chế độ quote,
+ *     nuốt hết Tab/xuống dòng tới dấu " tiếp theo -> lệch toàn bộ sheet.
+ *     Nay: " chỉ mở ô khi đứng ở ĐẦU ô VÀ tồn tại dấu đóng hợp lệ phía sau
+ *     (dấu " theo sau bởi Tab / xuống dòng / hết chuỗi).
+ *  2. Ô có xuống dòng (Alt+Enter) không được bọc quote -> bị cắt thành dòng
+ *     mới. Nay các dòng thiếu cột được GHÉP lại với dòng trước.
  *
  * LƯU Ý KHI DÁN VÀO FILE WORKER:
  *   INDEX_HTML là một chuỗi JS, nên hàm này cố tình KHÔNG dùng ký tự escape
@@ -24,22 +25,33 @@ function parseTSVToTable(text) {
 
   text = String(text == null ? '' : text).split(CR + NL).join(NL).split(CR).join(NL);
 
+  // Có dấu đóng ô hợp lệ phía sau không? Nếu không -> dấu " đầu ô chỉ là ký tự thường.
+  function hasProperClose(s, start) {
+    for (var j = start; j < s.length; j++) {
+      if (s[j] !== Q) continue;
+      if (s[j + 1] === Q) { j++; continue; }        // "" -> quote thoát, bỏ qua
+      var nx = s[j + 1];
+      if (nx === undefined || nx === TAB || nx === NL) return true;
+      return false;
+    }
+    return false;
+  }
+
   // ---- Bước 1: tách thô thành ma trận ----
   var rows = [], row = [], field = '', inQ = false;
   for (var i = 0; i < text.length; i++) {
     var c = text[i];
     if (inQ) {
       if (c === Q) {
-        if (text[i + 1] === Q) { field += Q; i++; }           // "" -> một dấu "
+        if (text[i + 1] === Q) { field += Q; i++; }            // "" -> một dấu "
         else {
           var nx = text[i + 1];
-          // chỉ ĐÓNG ô khi ngay sau đó là Tab / xuống dòng / hết chuỗi
-          if (nx === undefined || nx === TAB || nx === NL) inQ = false;
-          else field += Q;                                    // quote lẻ -> ký tự thường
+          if (nx === undefined || nx === TAB || nx === NL) inQ = false;   // đóng ô
+          else field += Q;                                      // quote lẻ -> ký tự thường
         }
       } else field += c;
     } else {
-      if (c === Q && field === '') inQ = true;                 // chỉ mở quote ở ĐẦU ô
+      if (c === Q && field === '' && hasProperClose(text, i + 1)) inQ = true;
       else if (c === TAB) { row.push(field); field = ''; }
       else if (c === NL)  { row.push(field); rows.push(row); row = []; field = ''; }
       else field += c;
@@ -57,11 +69,10 @@ function parseTSVToTable(text) {
     var cur = rows[r];
     var prev = fixed.length ? fixed[fixed.length - 1] : null;
     if (prev && prev.length < width && cur.length < width) {
-      // nối mảnh đầu vào ô cuối của dòng trước, phần còn lại thành các ô tiếp theo
       prev[prev.length - 1] += NL + (cur[0] == null ? '' : cur[0]);
       for (var k = 1; k < cur.length; k++) prev.push(cur[k]);
       repaired++;
-      r--; continue;                   // xét lại: dòng trước có thể còn thiếu nữa
+      continue;
     }
     fixed.push(cur.slice());
   }
@@ -74,7 +85,7 @@ function parseTSVToTable(text) {
   while (headers.length < w) headers.push('');
   for (var b2 = 0; b2 < body.length; b2++) { while (body[b2].length < w) body[b2].push(''); }
 
-  // số dòng vẫn còn nghi ngờ thiếu cột (để cảnh báo ở Bảng 1)
+  // số dòng vẫn lệch cột so với tiêu đề (để cảnh báo ở Bảng 1)
   var suspect = 0;
   for (var s = 0; s < fixed.length; s++) if (fixed[s].length !== width) suspect++;
 
